@@ -1,4 +1,4 @@
-# Fortran compiler
+# Fortran compiler (build.sh overrides this with FC=... on the make command line)
 FC=gfortran
 
 # Set variables depending on target
@@ -59,21 +59,46 @@ FILES= \
 	   surface_fluxes.o \
 	   tendencies.o \
 	   time_stepping.o \
+	   timing.o \
 	   types.o \
 	   vertical_diffusion.o
 
 %.o: %.f90
 	$(FC) $(COMPOPTS) -c $< $(INC)
 
+# Modules with a verified Lean replacement are compiled with strict IEEE
+# semantics (no fused multiply-add, no reassociation), so the Lean-generated C
+# can reproduce them bit-for-bit.
+STRICT=-O2 -ffp-contract=off
+
+# Preprocessor flags for vertical_diffusion.f90 (build.sh --lean sets -cpp,
+# and --shadow adds -DSHADOW_CHECK)
+VD_FPPFLAGS=
+
+vertical_diffusion.o: vertical_diffusion.f90 $(SHADOW_OBJS)
+	$(FC) $(STRICT) $(BASE) $(VD_FPPFLAGS) -c $< $(INC)
+
+# Original Fortran routines linked alongside their Lean replacements, for
+# bitwise shadow checking (set by build.sh --lean)
+SHADOW_OBJS=
+
+vertical_diffusion_fortran.o: vertical_diffusion_fortran.f90 params.o physical_constants.o \
+                              geometry.o types.o
+	$(FC) $(STRICT) $(BASE) -c $< $(INC)
+
+# Extra objects and libraries (e.g. the Lean kernels, set by build.sh --lean)
+EXTRA_OBJS=
+EXTRA_LIBS=
+
 base_target: $(FILES) speedy.o
-	$(FC) $(COMPOPTS) $(FILES) speedy.o -o speedy $(LIB)
+	$(FC) $(COMPOPTS) $(FILES) speedy.o $(SHADOW_OBJS) $(EXTRA_OBJS) -o speedy $(LIB) $(EXTRA_LIBS)
 
 .PHONY: clean
 clean:
-	rm -f *.o *.mod
+	rm -f $(FILES) speedy.o $(SHADOW_OBJS) *.mod
 
 speedy.o               : params.o date.o input_output.o shortwave_radiation.o time_stepping.o\
-                         diagnostics.o
+                         diagnostics.o timing.o
 auxiliaries.o          : params.o types.o
 boundaries.o           : physical_constants.o params.o input_output.o spectral.o types.o
 convection.o           : params.o physical_constants.o types.o
@@ -109,7 +134,7 @@ params.o               : types.o
 physics.o              : params.o coupler.o physical_constants.o boundaries.o land_model.o\
                          sea_model.o sppt.o convection.o large_scale_condensation.o surface_fluxes.o\
                          vertical_diffusion.o shortwave_radiation.o longwave_radiation.o humidity.o\
-                         geometry.o auxiliaries.o types.o
+                         geometry.o auxiliaries.o timing.o types.o
 longwave_radiation.o   : params.o physical_constants.o mod_radcon.o geometry.o types.o
 sea_model.o            : params.o input_output.o boundaries.o geometry.o interpolation.o\
  						 date.o auxiliaries.o mod_radcon.o types.o
@@ -121,4 +146,4 @@ tendencies.o           : params.o implicit.o prognostics.o physical_constants.o 
                          physics.o spectral.o geopotential.o types.o
 time_stepping.o        : dynamical_constants.o params.o prognostics.o tendencies.o\
                          horizontal_diffusion.o types.o
-vertical_diffusion     : params.o physical_constants.o geometry.o types.o
+vertical_diffusion.o   : params.o physical_constants.o geometry.o types.o
