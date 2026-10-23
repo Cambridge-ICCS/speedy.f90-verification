@@ -56,6 +56,7 @@ contains
                 get_downward_longwave_rad_fluxes, get_upward_longwave_rad_fluxes
         use surface_fluxes, only: get_surface_fluxes
         use vertical_diffusion, only: get_vertical_diffusion_tend
+        use timing, only: timer_start, timer_stop, timer_vertical_diffusion
         use humidity, only: spec_hum_to_rel_hum
         use spectral, only: spec_to_grid, uvspec
 
@@ -190,8 +191,10 @@ contains
         ! =========================================================================
 
         ! Vertical diffusion and shallow convection
+        call timer_start(timer_vertical_diffusion)
         call get_vertical_diffusion_tend(se, rh, qg, qsat, phig, icnv, ut_pbl, vt_pbl, &
             & tt_pbl, qt_pbl)
+        call timer_stop(timer_vertical_diffusion)
 
         ! Add tendencies due to surface fluxes
         ut_pbl(:,:,kx) = ut_pbl(:,:,kx) + ustr(:,:,3)*rps*grdsig(kx)

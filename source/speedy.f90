@@ -14,6 +14,7 @@ program speedy
     use diagnostics, only: check_diagnostics
     use prognostics, only: vor, div, t, ps, tr, phi
     use forcing, only: set_forcing
+    use timing, only: timer_start, timer_stop, report_timers, timer_main_loop
 
     implicit none
 
@@ -24,6 +25,7 @@ program speedy
     call initialize
 
     ! Model main loop
+    call timer_start(timer_main_loop)
     do while (.not. datetime_equal(model_datetime, end_datetime))
         ! Daily tasks
         if (mod(model_step-1, nsteps) == 0) then
@@ -52,4 +54,7 @@ program speedy
         ! Exchange data with coupler
         call couple_sea_land(1+model_step/nsteps)
     end do
+    call timer_stop(timer_main_loop)
+
+    call report_timers
 end
