@@ -5,3 +5,4 @@ bin.venv
 # Golden NetCDF snapshots are large (~235MB); MANIFEST.sha256 pins them
 golden/*/*.nc
 bench
+*.mod
