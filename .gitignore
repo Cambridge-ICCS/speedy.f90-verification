@@ -1,3 +1,7 @@
 *.swp
 rundir
-bin
+bin.venv
+.DS_Store
+# Golden NetCDF snapshots are large (~235MB); MANIFEST.sha256 pins them
+golden/*/*.nc
+bench
